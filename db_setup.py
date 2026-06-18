@@ -20,18 +20,19 @@ def setup_database():
     """)
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS deals (
-            deal_id TEXT PRIMARY KEY,
-            game_id TEXT NOT NULL,
-            store_id TEXT NOT NULL,
-            sale_price REAL,
-            normal_price REAL,
-            discount_pct REAL,
-            fetched_at TEXT,
-            FOREIGN KEY (game_id) REFERENCES games (game_id),
-            FOREIGN KEY (store_id) REFERENCES stores (store_id)
-        )
-    """)
+    CREATE TABLE IF NOT EXISTS deals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cheapshark_deal_id TEXT NOT NULL,
+        game_id TEXT NOT NULL,
+        store_id TEXT NOT NULL,
+        sale_price REAL,
+        normal_price REAL,
+        discount_pct REAL,
+        fetched_at TEXT,
+        FOREIGN KEY (game_id) REFERENCES games (game_id),
+        FOREIGN KEY (store_id) REFERENCES stores (store_id)
+    )
+""")
 
     conn.commit()
     conn.close()
