@@ -3,6 +3,8 @@
 [![Tests](https://github.com/JMScripts1/game-deal-tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/JMScripts1/game-deal-tracker/actions/workflows/tests.yml)
 ![Python](https://img.shields.io/badge/python-3.10%E2%80%933.14-blue)
 
+**[Project site](https://jmscripts1.github.io/game-deal-tracker/)**
+
 A PC game deal tracker built on the [CheapShark API](https://apidocs.cheapshark.com). It collects deals from more than 30 storefronts, stores timestamped price snapshots in SQLite, and sends a Discord alert when a game on your watchlist drops to your target price. You can use it from the command line or through a web dashboard.
 
 ![Dashboard](docs/dashboard.png)
