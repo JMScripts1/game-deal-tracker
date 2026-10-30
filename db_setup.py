@@ -42,7 +42,8 @@ def setup_database(conn):
             title TEXT NOT NULL,
             cheapest_ever REAL,
             cheapest_ever_date TEXT,
-            thumb TEXT
+            thumb TEXT,
+            steam_app_id TEXT
         );
 
         -- one row per deal per fetch, so prices can be compared over time
@@ -83,6 +84,7 @@ def setup_database(conn):
     """)
     _add_column_if_missing(conn, "games", "cheapest_ever_date", "TEXT")
     _add_column_if_missing(conn, "games", "thumb", "TEXT")
+    _add_column_if_missing(conn, "games", "steam_app_id", "TEXT")
     conn.commit()
 
 

@@ -23,7 +23,7 @@ def test_deals_from_games_matches_deal_format():
     assert deals[1] == {
         "dealID": "gog-hades", "gameID": "g1", "title": "Hades", "storeID": "7",
         "salePrice": "12.49", "normalPrice": "24.99", "savings": "50.02",
-        "thumb": "https://example.com/hades.jpg",
+        "thumb": "https://example.com/hades.jpg", "steamAppID": None,
     }
 
 

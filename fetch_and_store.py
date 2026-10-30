@@ -38,18 +38,20 @@ def store_deals(conn, deals, fetched_at=None):
         # Insert the game, or lower its cheapest_ever if this price beats it
         conn.execute(
             """
-            INSERT INTO games (game_id, title, cheapest_ever, cheapest_ever_date, thumb)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO games (game_id, title, cheapest_ever, cheapest_ever_date, thumb, steam_app_id)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT (game_id) DO UPDATE SET
                 title = excluded.title,
                 thumb = COALESCE(excluded.thumb, games.thumb),
+                steam_app_id = COALESCE(excluded.steam_app_id, games.steam_app_id),
                 cheapest_ever_date = CASE
                     WHEN games.cheapest_ever IS NULL OR excluded.cheapest_ever < games.cheapest_ever
                     THEN excluded.cheapest_ever_date ELSE games.cheapest_ever_date END,
                 cheapest_ever = MIN(COALESCE(games.cheapest_ever, excluded.cheapest_ever),
                                     excluded.cheapest_ever)
             """,
-            (deal["gameID"], deal["title"], sale_price, fetched_at[:10], deal.get("thumb")),
+            (deal["gameID"], deal["title"], sale_price, fetched_at[:10], deal.get("thumb"),
+             deal.get("steamAppID")),
         )
 
         cursor = conn.execute(
@@ -90,6 +92,7 @@ def deals_from_games(games):
                 "normalPrice": deal["retailPrice"],
                 "savings": deal["savings"],
                 "thumb": game["info"].get("thumb"),
+                "steamAppID": game["info"].get("steamAppID"),
             })
     return deals
 

@@ -57,12 +57,15 @@ streamlit run dashboard.py
 
 The dashboard opens at `http://localhost:8501`. From it you can:
 
-- Browse the latest deals, filtered by store, maximum price, and minimum discount
-- See which deals are at their historical low
+- See the biggest price drop right now, plus watched games that have hit their target
+- Browse deals as cover-art cards or a table, with search, store, price, and discount filters
+- See every game that's at its lowest price ever
 - Search for a game and chart its price at each store over time
 - Compare deal counts and average discounts across stores
-- Add and remove watchlist entries, and see which watched games are at or below target
+- Add and remove watchlist entries, and see how close each one is to its target
 - Fetch a new snapshot with one click
+
+Cover art comes from Steam when CheapShark knows the game's Steam app ID, and falls back to the store's own image otherwise.
 
 | Watchlist | Stores |
 | --- | --- |

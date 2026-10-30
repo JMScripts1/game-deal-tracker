@@ -1,5 +1,44 @@
-[theme]
-primaryColor = "#2ECC71"
+# Dark storefront theme shared with the project site (docs/index.html).
+# Fonts are self-hosted from ./static so the dashboard works offline.
+
+[server]
+enableStaticServing = true
+
+[client]
+toolbarMode = "minimal"
 
 [browser]
 gatherUsageStats = false
+
+[theme]
+base = "dark"
+primaryColor = "#3ccf80"
+backgroundColor = "#0d0f11"
+secondaryBackgroundColor = "#171a1e"
+textColor = "#eceeef"
+linkColor = "#3ccf80"
+borderColor = "#262b30"
+showWidgetBorder = true
+baseRadius = "8px"
+baseFontSize = 15
+font = "Geist"
+headingFont = "Geist"
+codeFont = "Geist Mono"
+codeBackgroundColor = "#14171a"
+dataframeHeaderBackgroundColor = "#14171a"
+chartCategoricalColors = ["#3ccf80", "#a3adb8", "#2e8f5a", "#e1e5e8", "#6b7580", "#8fe3b5"]
+
+[[theme.fontFaces]]
+family = "Geist"
+url = "app/static/Geist-Variable.woff2"
+weight = "100 900"
+
+[[theme.fontFaces]]
+family = "Geist Mono"
+url = "app/static/GeistMono-Variable.woff2"
+weight = "100 900"
+
+[theme.sidebar]
+backgroundColor = "#111316"
+secondaryBackgroundColor = "#191c20"
+borderColor = "#23272c"

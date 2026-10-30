@@ -21,7 +21,7 @@ def summary(conn):
 def latest_deals(conn):
     """Every discounted deal in the latest snapshot, with what the dashboard needs to display it."""
     return pd.read_sql_query(f"""
-        SELECT g.game_id, g.title, g.thumb, s.store_name,
+        SELECT g.game_id, g.title, g.thumb, g.steam_app_id, s.store_name,
                d.cheapshark_deal_id AS deal_id, d.sale_price, d.normal_price,
                ROUND(d.discount_pct, 1) AS discount_pct,
                g.cheapest_ever AS historical_low, g.cheapest_ever_date AS historical_low_date,
@@ -90,6 +90,24 @@ def all_time_lows(conn, limit=20):
         ORDER BY d.discount_pct DESC
         LIMIT ?
     """, conn, params=(limit,))
+
+
+def watchlist_status(conn):
+    """For each watchlist entry, the cheapest matching deal in the latest snapshot (if any)."""
+    entries = pd.read_sql_query(
+        "SELECT id AS watch_id, title_query, target_price FROM watchlist ORDER BY title_query", conn)
+    best = pd.read_sql_query(f"""
+        SELECT w.id AS watch_id, g.title, g.thumb, g.steam_app_id, s.store_name,
+               d.cheapshark_deal_id AS deal_id, MIN(d.sale_price) AS sale_price, d.normal_price,
+               COUNT(DISTINCT g.game_id) AS matching_games
+        FROM watchlist w
+        JOIN games g ON title_matches(w.title_query, g.title)
+        JOIN deals d ON d.game_id = g.game_id
+        JOIN stores s ON d.store_id = s.store_id
+        WHERE {LATEST}
+        GROUP BY w.id
+    """, conn)
+    return entries.merge(best, on="watch_id", how="left")
 
 
 def watchlist_hits(conn):
