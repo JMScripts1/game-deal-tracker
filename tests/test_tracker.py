@@ -1,37 +1,10 @@
-import sqlite3
-import sys
-from pathlib import Path
-
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import queries
 import watchlist
-from db_setup import setup_database
-from fetch_and_store import store_deals, sync_stores
-
-
-def make_deal(deal_id, game_id, title, sale, normal, store_id="1"):
-    return {
-        "dealID": deal_id,
-        "gameID": game_id,
-        "title": title,
-        "storeID": store_id,
-        "salePrice": str(sale),
-        "normalPrice": str(normal),
-        "savings": str(round((1 - sale / normal) * 100, 4)),
-    }
-
-
-@pytest.fixture
-def conn():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("PRAGMA foreign_keys = ON")
-    setup_database(conn)
-    sync_stores(conn, [{"storeID": "1", "storeName": "Steam"}, {"storeID": "7", "storeName": "GOG"}])
-    yield conn
-    conn.close()
+from conftest import make_deal
+from db_setup import title_matches
+from fetch_and_store import store_deals
 
 
 def test_store_deals_counts_new_games_and_snapshots(conn):
@@ -50,7 +23,7 @@ def test_cheapest_ever_only_goes_down(conn):
     store_deals(conn, [make_deal("a", "g1", "Hades", 10, 25)], "2026-01-01T00:00:00")
     store_deals(conn, [make_deal("a", "g1", "Hades", 7.5, 25)], "2026-01-02T00:00:00")
     store_deals(conn, [make_deal("a", "g1", "Hades", 12, 25)], "2026-01-03T00:00:00")
-    assert conn.execute("SELECT cheapest_ever FROM games").fetchone()[0] == 7.5
+    assert conn.execute("SELECT cheapest_ever, cheapest_ever_date FROM games").fetchone() == (7.5, "2026-01-02")
 
 
 def test_unknown_store_gets_placeholder(conn):
@@ -70,6 +43,13 @@ def test_reports_use_latest_snapshot_only(conn):
     assert len(queries.price_history(conn, "hades")) == 2
 
 
+def test_reports_skip_full_price_listings(conn):
+    store_deals(conn, [make_deal("a", "g1", "Hades", 25, 25), make_deal("b", "g2", "Celeste", 5, 20)],
+                "2026-01-01T00:00:00")
+    assert list(queries.top_deals(conn)["title"]) == ["Celeste"]
+    assert queries.deals_by_store(conn).iloc[0]["deal_count"] == 1
+
+
 def test_all_time_lows(conn):
     store_deals(conn, [make_deal("a", "g1", "Hades", 10, 25), make_deal("b", "g2", "Celeste", 8, 20)],
                 "2026-01-01T00:00:00")
@@ -86,6 +66,31 @@ def test_watchlist_hits(conn):
 
     hits = queries.watchlist_hits(conn)
     assert list(hits["title"]) == ["Hades II"]
+
+
+def test_full_price_games_are_not_lows(conn):
+    store_deals(conn, [make_deal("a", "g1", "Indie Game", 1.99, 1.99)], "2026-01-01T00:00:00")
+    assert queries.all_time_lows(conn).empty
+
+
+@pytest.mark.parametrize("query, title, expected", [
+    ("hades", "Hades", True),
+    ("hades", "Hades II", True),
+    ("hades", "The Road to Hades", True),
+    ("hades", "Cool Shades", False),
+    ("Baldur's Gate", "Baldur's Gate 3", True),
+    ("half-life", "Half-Life 2", True),
+    ("half", "Half-Life 2", True),
+    ("life 2", "Half-Life 2", True),
+])
+def test_title_matches_whole_words(query, title, expected):
+    assert title_matches(query, title) is expected
+
+
+def test_watchlist_ignores_partial_words(conn):
+    watchlist.add(conn, "hades", 30)
+    store_deals(conn, [make_deal("a", "g1", "Cool Shades", 1.79, 2.99)], "2026-01-01T00:00:00")
+    assert queries.watchlist_hits(conn).empty
 
 
 def test_watchlist_add_updates_and_remove(conn):

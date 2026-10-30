@@ -4,12 +4,17 @@ import argparse
 import sys
 
 import requests
+from dotenv import load_dotenv
 
-import queries
-import watchlist
-from db_setup import DB_PATH, get_connection, setup_database
-from fetch_and_store import fetch_and_store, sync_stores
-from run import fetch_and_alert, start_scheduler
+# Load .env before importing modules that read settings at import time
+load_dotenv()
+
+import notify  # noqa: E402
+import queries  # noqa: E402
+import watchlist  # noqa: E402
+from db_setup import DB_PATH, get_connection, setup_database  # noqa: E402
+from fetch_and_store import fetch_and_store, sync_stores  # noqa: E402
+from run import fetch_and_alert, start_scheduler  # noqa: E402
 
 
 def show(title, df):
@@ -69,6 +74,14 @@ def cmd_watch(args, conn):
         show("Watchlist alerts", queries.watchlist_hits(conn))
 
 
+def cmd_test_discord(args, conn):
+    url = notify.webhook_url()
+    if not url:
+        sys.exit("DISCORD_WEBHOOK_URL isn't set. Add it to your .env file (see .env.example).")
+    notify.send_test(url)
+    print("Test message sent. Check your Discord channel.")
+
+
 def cmd_schedule(args, conn):
     conn.close()
     start_scheduler(hours=args.hours, pages=args.pages)
@@ -105,6 +118,9 @@ def build_parser():
     p.add_argument("price", nargs="?", type=float)
     p.set_defaults(func=cmd_watch)
 
+    sub.add_parser("test-discord", help="send a test message to your Discord webhook").set_defaults(
+        func=cmd_test_discord)
+
     p = sub.add_parser("schedule", help="fetch on a repeating interval")
     p.add_argument("--hours", type=float, default=6)
     p.add_argument("--pages", type=int, default=1)
@@ -124,7 +140,7 @@ def main(argv=None):
         setup_database(conn)
         args.func(args, conn)
     except requests.RequestException as e:
-        sys.exit(f"Could not reach the CheapShark API: {e}")
+        sys.exit(f"Network request failed: {e}")
     finally:
         conn.close()
 

@@ -2,8 +2,8 @@
 
 from datetime import datetime
 
-from db_setup import get_connection, setup_database
-from fetch import get_deals, get_stores
+from db_setup import get_connection, setup_database, title_matches
+from fetch import get_deals, get_games, get_stores, search_games
 
 
 def sync_stores(conn, stores=None):
@@ -38,13 +38,18 @@ def store_deals(conn, deals, fetched_at=None):
         # Insert the game, or lower its cheapest_ever if this price beats it
         conn.execute(
             """
-            INSERT INTO games (game_id, title, cheapest_ever) VALUES (?, ?, ?)
+            INSERT INTO games (game_id, title, cheapest_ever, cheapest_ever_date, thumb)
+            VALUES (?, ?, ?, ?, ?)
             ON CONFLICT (game_id) DO UPDATE SET
                 title = excluded.title,
+                thumb = COALESCE(excluded.thumb, games.thumb),
+                cheapest_ever_date = CASE
+                    WHEN games.cheapest_ever IS NULL OR excluded.cheapest_ever < games.cheapest_ever
+                    THEN excluded.cheapest_ever_date ELSE games.cheapest_ever_date END,
                 cheapest_ever = MIN(COALESCE(games.cheapest_ever, excluded.cheapest_ever),
                                     excluded.cheapest_ever)
             """,
-            (deal["gameID"], deal["title"], sale_price),
+            (deal["gameID"], deal["title"], sale_price, fetched_at[:10], deal.get("thumb")),
         )
 
         cursor = conn.execute(
@@ -71,8 +76,59 @@ def store_deals(conn, deals, fetched_at=None):
     return games_after - games_before, deals_added
 
 
+def deals_from_games(games):
+    """Flatten a /games lookup into the same deal format the /deals endpoint returns."""
+    deals = []
+    for game_id, game in games.items():
+        for deal in game.get("deals", []):
+            deals.append({
+                "dealID": deal["dealID"],
+                "gameID": game_id,
+                "title": game["info"]["title"],
+                "storeID": deal["storeID"],
+                "salePrice": deal["price"],
+                "normalPrice": deal["retailPrice"],
+                "savings": deal["savings"],
+                "thumb": game["info"].get("thumb"),
+            })
+    return deals
+
+
+def update_lowest(conn, games):
+    """Apply CheapShark's historical low where it's lower than ours, or the same price but earlier."""
+    for game_id, game in games.items():
+        lowest = game.get("cheapestPriceEver") or {}
+        if lowest.get("price") is None:
+            continue
+        date = datetime.fromtimestamp(lowest["date"]).date().isoformat() if lowest.get("date") else None
+        price = float(lowest["price"])
+        conn.execute(
+            """
+            UPDATE games SET cheapest_ever = ?, cheapest_ever_date = ?
+            WHERE game_id = ? AND (
+                cheapest_ever IS NULL
+                OR ? < cheapest_ever - 0.001
+                OR (ABS(? - cheapest_ever) <= 0.001 AND ? < COALESCE(cheapest_ever_date, '9999'))
+            )
+            """,
+            (price, date, game_id, price, price, date),
+        )
+    conn.commit()
+
+
+def watched_game_ids(conn, per_query=10):
+    """Find CheapShark game ids for every watchlist entry."""
+    ids = set()
+    for (query,) in conn.execute("SELECT title_query FROM watchlist").fetchall():
+        for game in search_games(query, limit=per_query):
+            # CheapShark's search is fuzzy, so apply the same rule the watchlist report uses
+            if title_matches(query, game["external"]):
+                ids.add(game["gameID"])
+    return ids
+
+
 def fetch_and_store(pages=1, page_size=60, db_path=None):
-    """Fetch `pages` pages of deals from CheapShark and store them as one snapshot."""
+    """Fetch deals plus every watched game and store them as one snapshot."""
     print(f"Fetching at {datetime.now().strftime('%H:%M:%S')}...")
     conn = get_connection(db_path)
     try:
@@ -89,7 +145,17 @@ def fetch_and_store(pages=1, page_size=60, db_path=None):
             if len(batch) < page_size:
                 break
 
+        # Watched games are looked up directly, so they're tracked even when
+        # they aren't among the top-rated deals
+        watched = watched_game_ids(conn)
+        games = get_games({d["gameID"] for d in deals} | watched)
+
+        seen = {d["dealID"] for d in deals}
+        watched_games = {gid: games[gid] for gid in watched if gid in games}
+        deals.extend(d for d in deals_from_games(watched_games) if d["dealID"] not in seen)
+
         games_added, deals_added = store_deals(conn, deals)
+        update_lowest(conn, games)
     finally:
         conn.close()
 

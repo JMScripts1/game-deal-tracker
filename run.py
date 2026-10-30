@@ -1,13 +1,15 @@
-# Runs fetch_and_store on a fixed interval and prints watchlist alerts after each fetch
+# Runs fetch_and_store on a fixed interval and sends watchlist alerts after each fetch
 
 import time
 
 import requests
 import schedule
+from dotenv import load_dotenv
 
+from alerts import mark_sent, pending_alerts
 from db_setup import get_connection
 from fetch_and_store import fetch_and_store
-from queries import watchlist_hits
+from notify import notify
 
 
 def fetch_and_alert(pages=1):
@@ -20,12 +22,12 @@ def fetch_and_alert(pages=1):
 
     conn = get_connection()
     try:
-        hits = watchlist_hits(conn)
+        alerts = pending_alerts(conn)
+        # Only remember alerts that were delivered, so failed ones retry next fetch
+        if alerts and notify(alerts):
+            mark_sent(conn, alerts)
     finally:
         conn.close()
-    if not hits.empty:
-        print("=== Watchlist alerts ===")
-        print(hits.to_string(index=False))
 
 
 def start_scheduler(hours=6, pages=1):
@@ -42,4 +44,5 @@ def start_scheduler(hours=6, pages=1):
 
 
 if __name__ == "__main__":
+    load_dotenv()
     start_scheduler()
