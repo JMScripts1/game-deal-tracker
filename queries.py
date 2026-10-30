@@ -10,6 +10,30 @@ LATEST = "d.fetched_at = (SELECT MAX(fetched_at) FROM deals)"
 AT_LOW = "d.discount_pct > 0 AND d.sale_price <= g.cheapest_ever + 0.001"
 
 
+def summary(conn):
+    """Headline numbers: games tracked, number of snapshots, and when the last one ran."""
+    games, snapshots, last_fetch = conn.execute("""
+        SELECT (SELECT COUNT(*) FROM games), COUNT(DISTINCT fetched_at), MAX(fetched_at) FROM deals
+    """).fetchone()
+    return {"games": games, "snapshots": snapshots, "last_fetch": last_fetch}
+
+
+def latest_deals(conn):
+    """Every discounted deal in the latest snapshot, with what the dashboard needs to display it."""
+    return pd.read_sql_query(f"""
+        SELECT g.game_id, g.title, g.thumb, s.store_name,
+               d.cheapshark_deal_id AS deal_id, d.sale_price, d.normal_price,
+               ROUND(d.discount_pct, 1) AS discount_pct,
+               g.cheapest_ever AS historical_low, g.cheapest_ever_date AS historical_low_date,
+               ({AT_LOW}) AS at_historical_low
+        FROM deals d
+        JOIN games g ON d.game_id = g.game_id
+        JOIN stores s ON d.store_id = s.store_id
+        WHERE {LATEST} AND d.discount_pct > 0
+        ORDER BY d.discount_pct DESC, d.sale_price ASC
+    """, conn)
+
+
 def top_deals(conn, limit=10):
     """Biggest discounts in the latest snapshot."""
     return pd.read_sql_query(f"""
