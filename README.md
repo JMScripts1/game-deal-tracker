@@ -158,7 +158,7 @@ Settings are read from environment variables or from a `.env` file in the projec
 ├── watchlist.py         # Watchlist add / remove / list
 ├── run.py               # Fetch-and-alert cycle and interval scheduler
 ├── tests/               # pytest suite, including dashboard smoke tests
-└── .github/workflows/   # CI: runs the tests on Python 3.10–3.14
+└── .github/workflows/   # CI: runs the tests on Python 3.10-3.14
 ```
 
 ## Data model
