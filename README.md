@@ -2,6 +2,7 @@
 
 [![Tests](https://github.com/JMScripts1/game-deal-tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/JMScripts1/game-deal-tracker/actions/workflows/tests.yml)
 ![Python](https://img.shields.io/badge/python-3.10%E2%80%933.14-blue)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 **[Project site](https://jmscripts1.github.io/game-deal-tracker/)**
 
@@ -182,3 +183,7 @@ The suite uses temporary SQLite databases and mocked API responses, so it never 
 - **Historical lows** come from CheapShark's records, and are lowered further if the tracker sees a cheaper price later.
 - **Rate limits**: CheapShark is a free service that limits request rates. The default 6-hour schedule stays well within its limits; please don't fetch aggressively. Failed or rate-limited requests are retried with backoff.
 - Deal data is provided by [CheapShark](https://www.cheapshark.com). This project is not affiliated with CheapShark or any of the storefronts it tracks.
+
+## License
+
+Released under the [MIT License](LICENSE). You're free to use, modify, and share the code, including in commercial projects, as long as the license notice is kept.
